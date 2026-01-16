@@ -40,14 +40,17 @@ def hspec_library(name, src_strip_prefix, **kwargs):
         **kwargs
     )
 
-def hspec_test(name, visibility=["//tools/haskell:__pkg__"], **kwargs):
+def hspec_test(name, srcs=None, visibility=["//tools/haskell:__pkg__"], **kwargs):
     """HSpec test."""
-    srcs = native.glob(["test/*/**/*.*hs"])
+    if not srcs:
+        srcs = native.glob(["test/*/**/*.*hs"])
+
+    driver_file = "test/%s_Spec.hs" % name
 
     native.genrule(
         name = name + "_hspec_driver",
         srcs = srcs,
-        outs = ["test/Spec.hs"],
+        outs = [driver_file],
         cmd = ";".join([
             "cd %s/test" % native.package_name(),
             "../../$(location %s) $$(basename $@) Main.hs ../../$@" % _HSPEC_DISCOVER,
@@ -59,7 +62,7 @@ def hspec_test(name, visibility=["//tools/haskell:__pkg__"], **kwargs):
     haskell_test(
         name = name,
         srcs = srcs + [name + "_hspec_driver"],
-        main_file = "test/Spec.hs",
+        main_file = driver_file,
         src_strip_prefix = "test",
         tags = ["haskell"],
         visibility = visibility,

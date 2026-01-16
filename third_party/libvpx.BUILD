@@ -1,6 +1,8 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@toktok//third_party/yasm:build_defs.bzl", "asm_library")
 
+REPO_ROOT = package_relative_label(":BUILD.bazel").workspace_root
+
 asm_library(
     name = "assemblies",
     srcs = glob([
@@ -21,8 +23,8 @@ asm_library(
     }),
     archive = False,
     asmopts = [
-        "-I$(GENDIR)/external/libvpx",  # Generated headers.
-        "-Iexternal/libvpx",
+        "-I$(GENDIR)/" + REPO_ROOT,  # Generated headers.
+        "-I" + REPO_ROOT,
     ] + select({
         "@toktok//tools/config:linux-x86_64": ["-Ithird_party/libvpx/linux-x86_64"],
         "@toktok//tools/config:windows-x86_64": ["-Ithird_party/libvpx/windows-x86_64"],

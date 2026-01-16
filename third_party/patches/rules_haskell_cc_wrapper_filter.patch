@@ -1,0 +1,50 @@
+--- a/haskell/private/cc_wrapper.py.tpl	2025-12-23 12:41:45.000000000 +0000
++++ b/haskell/private/cc_wrapper.py.tpl	2025-12-23 12:44:22.000000000 +0000
+@@ -97,7 +97,22 @@
+     elif parsed.printing_file_name:
+         print_file_name(parsed.print_file_name, parsed.args)
+     else:
+-        run_cc(parsed.args, exit_on_error=True)
++        # run_cc(parsed.args, exit_on_error=True)
++        (ret, stdout, stderr) = run_cc(parsed.args, capture_output=True, exit_on_error=False)
++
++        if stderr:
++            lines = stderr.decode('utf-8', errors='replace').splitlines()
++            # Filter warnings about unused arguments during compilation
++            lines = [l for l in lines if "argument unused during compilation" not in l]
++
++            if lines:
++                sys.stderr.write("\n".join(lines) + "\n")
++
++        if stdout:
++            sys.stdout.buffer.write(stdout)
++
++        if ret != 0:
++            sys.exit(ret)
+
+
+ # --------------------------------------------------------------------
+@@ -574,7 +589,22 @@
+     # Note: `RULES_HASKELL_SILENCE_LINKER` is only set if called from doctest,
+     #       which is used to silence the linker output to not interfere with the output
+     #       from GHCi
+-    run_cc(args, capture_output="RULES_HASKELL_SILENCE_LINKER" in os.environ, exit_on_error=True)
++    silence = "RULES_HASKELL_SILENCE_LINKER" in os.environ
++    (ret, stdout, stderr) = run_cc(args, capture_output=True, exit_on_error=False)
++
++    if stderr:
++        lines = stderr.decode('utf-8', errors='replace').splitlines()
++        # Filter warnings about unused arguments during compilation
++        lines = [l for l in lines if "argument unused during compilation" not in l]
++
++        if lines and (ret != 0 or not silence):
++            sys.stderr.write("\n".join(lines) + "\n")
++
++    if stdout and (ret != 0 or not silence):
++        sys.stdout.buffer.write(stdout)
++
++    if ret != 0:
++        sys.exit(ret)
+
+     if is_darwin():
+         darwin_rewrite_load_commands(darwin_rewrites, output)

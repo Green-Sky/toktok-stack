@@ -23,7 +23,6 @@ workspace(projects = [
     "hs-tokstyle",
     "hs-toxcore",
     "hs-toxcore-c",
-    "js-toxcore-c",
     "jvm-toxcore-c",
     "py_toxcore_c",
     "qtox",

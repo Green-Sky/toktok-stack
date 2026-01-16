@@ -1,6 +1,7 @@
 ---
 exclude:
   - "**/BUILD.*"
+  - "**/*.patch"
   - "third_party/ffmpeg/**/*.[ch]"
   - "third_party/haskell/alex/templates/*.hs"
   - "third_party/haskell/happy/templates/*"
@@ -11,3 +12,8 @@ exclude:
   - "third_party/libzmq/**/*.hpp"
   - "third_party/ncurses/src/**/*"
   - "third_party/opus/**/*.h"
+
+restylers:
+  - pyment:
+      enabled: false
+  - "*"

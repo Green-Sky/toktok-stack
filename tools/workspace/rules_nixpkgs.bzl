@@ -1,8 +1,7 @@
-# TODO(iphydf): Delete this once rules_nixpkgs has a release and rules_haskell uses it.
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-_rules_nixpkgs_version = "4b193df3b1a03415db74628944beb05c3320aae3"
-_rules_nixpkgs_sha256 = "de32ac22283a94ef26f4c6d60a2597b6b788e3df0a7d20a053fb926553af62c4"
+_rules_nixpkgs_version = "0.13.0"
+_rules_nixpkgs_sha256 = "0dfbc718e8a6e4b376b9445a1f8dce9330d395dd1a53de6e32ca9b6c6ea56860"
 
 def rules_nixpkgs_dependencies():
     # N.B. rules_nixpkgs was split into separate components, which need to be loaded separately
@@ -12,7 +11,7 @@ def rules_nixpkgs_dependencies():
     strip_prefix = "rules_nixpkgs-%s" % _rules_nixpkgs_version
 
     rules_nixpkgs_url = \
-        "https://github.com/tweag/rules_nixpkgs/archive/{version}.tar.gz".format(
+        "https://github.com/tweag/rules_nixpkgs/archive/v{version}.tar.gz".format(
             version = _rules_nixpkgs_version
         )
 
@@ -26,8 +25,8 @@ def rules_nixpkgs_dependencies():
     # required by rules_nixpkgs
     http_archive(
         name = "rules_nodejs",
-        sha256 = "0c2277164b1752bb71ecfba3107f01c6a8fb02e4835a790914c71dfadcf646ba",
-        urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/5.8.5/rules_nodejs-core-5.8.5.tar.gz"],
+        sha256 = "764a3b3757bb8c3c6a02ba3344731a3d71e558220adcb0cf7e43c9bba2c37ba8",
+        urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/5.8.2/rules_nodejs-core-5.8.2.tar.gz"],
     )
 
     http_archive(

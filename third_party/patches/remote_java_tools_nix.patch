@@ -1,0 +1,16 @@
+--- a/java_tools/ijar/BUILD
++++ b/java_tools/ijar/BUILD
+@@ -10,7 +10,14 @@
+
+ filegroup(
+     name = "ijar",
+-    srcs = ["ijar.exe"] if is_windows else ["ijar"],
++    srcs = ["ijar.exe"] if is_windows else [":ijar_patched"],
++)
++
++genrule(
++    name = "ijar_patched",
++    srcs = ["ijar"],
++    outs = ["ijar_patched_bin"],
++    cmd = "cp $< $@ && chmod +w $@ && patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 --set-rpath /lib64 $@",
+ )

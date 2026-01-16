@@ -1,0 +1,10 @@
+--- sh/private/posix.bzl
++++ sh/private/posix.bzl
+@@ -8,6 +8,7 @@
+     "awk",
+     "basename",
+     "batch",
++    "bash",
+     "bc",
+     "bg",
+     "cc",

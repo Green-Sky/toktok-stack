@@ -334,13 +334,21 @@ qt_repc = rule(
 # Qt binary, making sure we can `bazel run` it.
 # =========================================================
 
+def _runfiles_path(path):
+    if path.startswith("external/"):
+        return "../" + path.removeprefix("external/")
+    return path
+
+_QT_BASE_PLUGINS_PATH = _runfiles_path(Label("@qt6.qtbase//:plugins").workspace_root) + "/lib/qt-6/plugins"
+_QT_SVG_PLUGINS_PATH = _runfiles_path(Label("@qt6.qtsvg//:plugins").workspace_root) + "/lib/qt-6/plugins"
+
 def qt_binary(name, tags=[], **kwargs):
     cc_binary(
         name = name,
         env = {
             "QT_PLUGIN_PATH": ":".join([
-                "external/qt6.qtbase/lib/qt-6/plugins",
-                "external/qt6.qtsvg/lib/qt-6/plugins",
+                _QT_BASE_PLUGINS_PATH,
+                _QT_SVG_PLUGINS_PATH,
             ]),
         },
         data = [
@@ -381,8 +389,8 @@ def qt_test(name, src, deps, copts = [], mocopts = [], size = None, tags = [], *
         )],
         env = {
             "QT_PLUGIN_PATH": ":".join([
-                "external/qt6.qtbase/lib/qt-6/plugins",
-                "external/qt6.qtsvg/lib/qt-6/plugins",
+                _QT_BASE_PLUGINS_PATH,
+                _QT_SVG_PLUGINS_PATH,
             ]),
             "QT_QPA_PLATFORM": "offscreen",
         },

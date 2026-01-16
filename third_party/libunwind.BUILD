@@ -14,6 +14,8 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
+REPO_ROOT = package_relative_label(":BUILD.bazel").workspace_root
+
 genrule(
     name = "regen_config",
     srcs = glob([
@@ -64,10 +66,10 @@ genrule(
 LIBUNWIND_COPTS = [
     "-DHAVE_CONFIG_H",
     "-D_GNU_SOURCE",
-    "-Iexternal/libunwind/include",
-    "-Iexternal/libunwind/include/tdep",
-    "-Iexternal/libunwind/src",
-    "-I$(GENDIR)/external/libunwind/include",
+    "-I" + REPO_ROOT + "/include",
+    "-I" + REPO_ROOT + "/include/tdep",
+    "-I" + REPO_ROOT + "/src",
+    "-I$(GENDIR)/" + REPO_ROOT + "/include",
     "-Wno-gnu-pointer-arith",
     "-Wno-null-pointer-subtraction",
     "-Wno-pedantic",
@@ -251,5 +253,6 @@ cc_library(
     deps = [
         ":included_sources",
         "@libxz",
+        "@zlib",
     ],
 )

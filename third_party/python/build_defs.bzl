@@ -84,7 +84,7 @@ def pyx_library(
         srcs = pyx_srcs + pxd_srcs,
         outs = cpp_srcs + debug_info,
         cmd = "\n".join([
-            "PYTHONHASHSEED=0 $(location @cython//:cython) --cplus -I %s -I $(GENDIR)/%s %s %s" % (
+            "PYTHONHASHSEED=0 $(location @cython//:cython_binary) --cplus -I %s -I $(GENDIR)/%s %s %s" % (
                 native.package_name(),
                 native.package_name(),
                 extra_flags,
@@ -94,7 +94,7 @@ def pyx_library(
             "cp -r %s/* $(RULEDIR)" % native.package_name(),
         ]),
         tags = tags,
-        tools = ["@cython//:cython"],
+        tools = ["@cython//:cython_binary"],
     )
 
     # Compile the C code to shared objects.
@@ -133,14 +133,15 @@ def mypy_test(name, srcs, deps = [], path = [], tags = []):
     """
     py_test(
         name = name,
-        size = "small",
         srcs = ["//third_party/python:mypy_test.py"],
         args = [
             "--extra-checks",
             "--strict",
+        ] + [
+            "--mypy-path=$(location %s)" % p if ":" in p or p.startswith("@") else "--mypy-path=" + p
+            for p in path
         ] + ["$(location :%s)" % s for s in srcs],
-        data = srcs,
-        env = {"MYPYPATH": ":".join(path)},
+        data = srcs + [p for p in path if ":" in p or p.startswith("@")],
         tags = tags + ["no-windows"],
         deps = deps + ["@mypy"],
     )

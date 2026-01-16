@@ -1,5 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
+REPO_ROOT = package_relative_label(":BUILD.bazel").workspace_root
+
 genrule(
     name = "config",
     outs = ["dummy/config.h"],
@@ -36,15 +38,15 @@ cc_library(
         "-DHAVE_STDINT_H",
         "-DHAVE_STRING_H",
         "-DHAVE_VISIBILITY",
-        "-I$(GENDIR)/external/libxz/dummy",
-        "-Iexternal/libxz/src/common",
-        "-Iexternal/libxz/src/liblzma/check",
-        "-Iexternal/libxz/src/liblzma/common",
-        "-Iexternal/libxz/src/liblzma/delta",
-        "-Iexternal/libxz/src/liblzma/lz",
-        "-Iexternal/libxz/src/liblzma/lzma",
-        "-Iexternal/libxz/src/liblzma/rangecoder",
-        "-Iexternal/libxz/src/liblzma/simple",
+        "-I$(GENDIR)/" + REPO_ROOT + "/dummy",
+        "-I" + REPO_ROOT + "/src/common",
+        "-I" + REPO_ROOT + "/src/liblzma/check",
+        "-I" + REPO_ROOT + "/src/liblzma/common",
+        "-I" + REPO_ROOT + "/src/liblzma/delta",
+        "-I" + REPO_ROOT + "/src/liblzma/lz",
+        "-I" + REPO_ROOT + "/src/liblzma/lzma",
+        "-I" + REPO_ROOT + "/src/liblzma/rangecoder",
+        "-I" + REPO_ROOT + "/src/liblzma/simple",
     ] + select({
         "@toktok//tools/config:windows": ["-DMYTHREAD_VISTA"],
         "//conditions:default": [

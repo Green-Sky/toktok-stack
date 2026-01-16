@@ -1,0 +1,42 @@
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -40,22 +40,18 @@
+ SUPPORTED_PYTHON_VERSIONS = [
+-    "3.8",
+-    "3.9",
+-    "3.10",
+     "3.11",
+-    "3.12",
+ ]
+
+ python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+
+-[
+-    python.toolchain(
+-        # Required to avoid an error when running as root in OSS-Fuzz.
+-        ignore_root_user_error = True,
+-        is_default = python_version == SUPPORTED_PYTHON_VERSIONS[-1],
+-        python_version = python_version,
+-    )
+-    for python_version in SUPPORTED_PYTHON_VERSIONS
+-]
++# [
++#     python.toolchain(
++#         # Required to avoid an error when running as root in OSS-Fuzz.
++#         ignore_root_user_error = True,
++#         is_default = python_version == SUPPORTED_PYTHON_VERSIONS[-1],
++#         python_version = python_version,
++#     )
++#     for python_version in SUPPORTED_PYTHON_VERSIONS
++# ]
+
+ pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+
+@@ -64,6 +60,7 @@
+     pip.parse(
+         extra_pip_args = ["--require-hashes"],
+         hub_name = "rules_fuzzing_py_deps",
++        python_interpreter = "/usr/bin/python3",
+         python_version = python_version,
+         requirements_lock = "//fuzzing:requirements.txt",
+     )

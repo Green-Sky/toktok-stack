@@ -1,16 +1,23 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 {
+  nixpkgs.config.allowUnfree = true;
+
   home.username = "builder";
   home.homeDirectory = "/home/builder";
   home.sessionVariables = {
     EDITOR = "nvim";
     GITHUB_API_URL = "https://api.github.com";
     GITHUB_TOKEN =
-      let tokenFile = "${config.home.homeDirectory}/.github-token"; in
-      if builtins.pathExists tokenFile
-        then lib.removeSuffix "\n" (builtins.readFile tokenFile)
-        else "";
+      let
+        tokenFile = "${config.home.homeDirectory}/.github-token";
+      in
+      if builtins.pathExists tokenFile then lib.removeSuffix "\n" (builtins.readFile tokenFile) else "";
 
     ASAN_OPTIONS = "color=always:detect_leaks=1:strict_string_checks=1:check_initialization_order=1:strict_init_order=1:external_symbolizer_path=${pkgs.llvm}/bin/llvm-symbolizer";
     LSAN_OPTIONS = "report_objects=1";
@@ -26,37 +33,44 @@
   ];
 
   # Packages that should be installed to the user profile.
-  home.packages = with pkgs; if config.home.sessionVariables.GITHUB_TOKEN == "" then [] else [
-    astyle                  # C code formatting
-    bazel-watcher           # runs bazel test/build in a loop when files change
-    clang-tools             # C++ code formatting
-    connect                 # for ssh proxy via tor
-    gdb                     # debugger for C code
-    github-cli              # utilities for dealing with GitHub repos
-    gnupg                   # for signing git commits
-    go                      # for vscode to understand Go
-    haskell-language-server # for vscode to understand Haskell
-    ktfmt                   # Kotlin formatter
-    man-pages               # libc documentation
-    man-pages-posix         # libc documentation (POSIX functions)
-    netlify-cli             # to perform local test deploys
-    nsis                    # Windows installer creation
-    nodePackages.prettier   # formatting JSON and JavaScript files
-    openssh                 # ssh server
-    protobuf                # needed to build protobuf files in jvm-toxcore-c
-    # needed for .hie-bios
-    (python3.withPackages(ps: with ps; [
-      cython
-      requests
-      types-requests
-    ]))
-    rsync                   # for syncing files to the container
-    screen                  # terminal window manager
-    strace                  # debugging system calls
-    stylish-haskell         # formatter for Haskell
-    tor                     # onion routing for privacy when testing tox inside the container
-    xxd                     # hex viewer (to inspect dumps and tox saves)
-  ];
+  home.packages =
+    with pkgs;
+    if config.home.sessionVariables.GITHUB_TOKEN == "" then
+      [ ]
+    else
+      [
+        astyle # C code formatting
+        bazel-watcher # runs bazel test/build in a loop when files change
+        clang-tools # C++ code formatting
+        connect # for ssh proxy via tor
+        gdb # debugger for C code
+        github-cli # utilities for dealing with GitHub repos
+        gnupg # for signing git commits
+        go # for vscode to understand Go
+        haskell-language-server # for vscode to understand Haskell
+        ktfmt # Kotlin formatter
+        man-pages # libc documentation
+        man-pages-posix # libc documentation (POSIX functions)
+        netlify-cli # to perform local test deploys
+        nsis # Windows installer creation
+        prettier # formatting JSON and JavaScript files
+        openssh # ssh server
+        protobuf # needed to build protobuf files in jvm-toxcore-c
+        # needed for .hie-bios
+        (python3.withPackages (
+          ps: with ps; [
+            cython
+            requests
+            types-requests
+          ]
+        ))
+        rsync # for syncing files to the container
+        screen # terminal window manager
+        strace # debugging system calls
+        stylish-haskell # formatter for Haskell
+        tor # onion routing for privacy when testing tox inside the container
+        xxd # hex viewer (to inspect dumps and tox saves)
+      ];
 
   # This value determines the Home Manager release that your
   # configuration is compatible with. This helps avoid breakage

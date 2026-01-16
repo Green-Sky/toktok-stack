@@ -166,7 +166,15 @@ def _haskell_project(custom_cirrus, tests):
         data = [
             "BUILD.bazel",
             cabal_file,
-        ],
+        ] + native.glob(
+            [
+                "src/**/*.hs",
+                "src/**/*.lhs",
+                "test/**/*.hs",
+                "test/**/*.lhs",
+            ],
+            allow_empty = True,
+        ),
     )
 
     _haskell_ci_tests(

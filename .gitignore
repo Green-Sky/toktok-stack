@@ -23,6 +23,7 @@ compile_commands.json
 mallocfail_hashes*
 
 # Work-in-progress directory.
+/tmp
 /wip
 
 # Editor temporary files.

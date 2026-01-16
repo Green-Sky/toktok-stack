@@ -121,7 +121,7 @@ jobs:
           sh install.sh --no-channel-add --yes
           rm install.sh
           . "$HOME/.nix-profile/etc/profile.d/nix.sh"
-          nix-channel --add https://github.com/NixOS/nixpkgs/archive/a81bbdfb658428a45c69a42aa73d4bd18127c467.tar.gz nixpkgs
+          nix-channel --add https://github.com/NixOS/nixpkgs/archive/549bd84d6279f9852cae6225e372cc67fb91a4c1.tar.gz nixpkgs
           nix-channel --update
       - name: Install mold
         run: sudo apt-get install mold
@@ -132,15 +132,21 @@ jobs:
           bazel test --config=ci --config=local --config=remote -- //... -//jvm-toxcore-c/... -//third_party/...
 
   macos:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Install Nix
         run: sh <(curl -L https://nixos.org/nix/install) --yes
+      - name: Test Nix
+        run: |
+          . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+          nix-shell -p nix-info --run "nix-info -m"
       - name: Build
-        run: bazel test --config=remote //c-toxcore/toxcore/...
+        run: |
+          . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+          bazel test --config=ci --config=remote //c-toxcore/toxcore/...
 
   mypy:
     runs-on: ubuntu-22.04

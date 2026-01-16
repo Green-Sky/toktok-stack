@@ -1,6 +1,8 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("@toktok//third_party/tcl:build_defs.bzl", "TCLSH")
 
+REPO_ROOT = package_relative_label(":BUILD.bazel").workspace_root
+
 cc_binary(
     name = "lemon",
     srcs = ["tool/lemon.c"],
@@ -73,7 +75,7 @@ genrule(
     outs = ["include/sqlite3.h"],
     cmd = " ".join([
         "cp $(location :mksourceid) mksourceid;",
-        TCLSH + " $(location tool/mksqlite3h.tcl) external/sqlcipher > $@",
+        TCLSH + " $(location tool/mksqlite3h.tcl) " + REPO_ROOT + " > $@",
     ]),
     tools = [
         ":mksourceid",
@@ -93,8 +95,13 @@ genrule(
     tools = [":mkkeywordhash"],
 )
 
-cc_library(
-    name = "sqlcipher",
+LIBS = {
+    "sqlcipher": "openssl",
+    "sqlite3": "boringssl",
+}
+
+[cc_library(
+    name = name,
     srcs = [
         "keywordhash.h",
         "opcodes.c",
@@ -126,7 +133,7 @@ cc_library(
     }),
     hdrs = ["include/sqlite3.h"],
     copts = [
-        "-Iexternal/sqlcipher/src",
+        "-I" + REPO_ROOT + "/src",
         "-DBUILD_sqlite",
         "-DSQLITE_THREADSAFE=1",
         "-DSQLITE_HAVE_ZLIB=1",
@@ -154,8 +161,12 @@ cc_library(
     }),
     strip_include_prefix = "include",
     visibility = ["//visibility:public"],
-    deps = ["@openssl"],
-)
+    deps = [
+        "@%s//:ssl" % ssl,
+        "@%s//:crypto" % ssl,
+        "@zlib",
+    ],
+) for name, ssl in LIBS.items()]
 
 cc_binary(
     name = "sqldiff",

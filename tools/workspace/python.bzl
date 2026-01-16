@@ -1,4 +1,4 @@
-"""Finds local system Python headers and libraries
+"""Finds Nix Python headers and libraries
 
 Uses python-config to make them available to be used as a C/C++ dependency.
 
@@ -7,55 +7,32 @@ Example:
         load("//tools/workspace:python.bzl", "python_repository")
         python_repository(
             name = "python3",
-            version = "3",
+            python_config = "@python3_config//:bin/python3-config",
         )
 
     BUILD:
         cc_library(
             name = "foobar",
             srcs = ["bar.cc"],
-            deps = ["@python2//:python"],
+            deps = ["@python3//:python"],
         )
 
 Arguments:
     name: A unique name for this rule.
-    version: The version of Python headers and libraries to be found.
+    python_config: The label of the python-config binary.
 """
 
-def _python_config(repository_ctx, versions):
-    for version in versions:
-        python_config = repository_ctx.which("python{}-config".format(version))
-
-        if not python_config:
-            continue
-
-        result = repository_ctx.execute([python_config, "--help"])
-        if result.return_code == 0:
-            python_config = [python_config]
-
-            # From version 3.8 and upwards, we need to pass --embed to get -lpython3.x.
-            if version in ["3.12", "3.11", "3.10", "3.9", "3.8"]:
-                python_config.append("--embed")
-            return python_config, version
-
-    return None, None
+def _python_config(repository_ctx):
+    config = str(repository_ctx.path(repository_ctx.attr.python_config))
+    result = repository_ctx.execute([config, "--version"])
+    if result.return_code == 0:
+        version = result.stdout.strip().split(" ")[1]
+        version = ".".join(version.split(".")[:2])
+        return [config, "--embed"], version
+    return [config, "--embed"], "3"
 
 def _impl(repository_ctx):
-    version = repository_ctx.attr.version
-    if "." in version:
-        versions = [version]
-    elif version == "2":
-        versions = ["2.7"]
-    elif version == "3":
-        versions = ["3.12", "3.11", "3.10", "3.9", "3.8", "3.7", "3.6", "3.5"]
-    else:
-        fail("Unsupported Python version: %s " % version +
-             "(need 2, 3, or an exact version number)")
-
-    python_config, version = _python_config(repository_ctx, versions)
-
-    if not python_config:
-        fail("Could not find pythonX-config for X in {}".format(versions))
+    python_config, _version = _python_config(repository_ctx)
 
     includes_result = repository_ctx.execute(python_config + ["--includes"])
     if includes_result.return_code != 0:
@@ -94,22 +71,6 @@ def _impl(repository_ctx):
         if not linkopts[i].startswith("-"):
             linkopts[i - 1] = " ".join([linkopts[i - 1], linkopts.pop(i)])
 
-    if repository_ctx.path("/usr/include/x86_64-linux-gnu").exists:
-        abiflags_result = repository_ctx.execute(python_config + ["--abiflags"])
-        if abiflags_result.return_code != 0:
-            fail("Could not determine Python ABI flags", attr = abiflags_result.stderr)
-
-        repository_ctx.symlink(
-            "/usr/include/x86_64-linux-gnu",
-            base.get_child("x86_64-linux-gnu"),
-        )
-
-        hdrs.append("include/x86_64-linux-gnu/python%s%s/pyconfig.h" % (
-            version,
-            abiflags_result.stdout.strip(),
-        ))
-        includes.append("include")
-
     file_content = """
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
@@ -130,7 +91,9 @@ cc_library(
 
 python_repository = repository_rule(
     _impl,
-    attrs = {"version": attr.string(default = "3")},
+    attrs = {
+        "python_config": attr.label(mandatory = True),
+    },
     configure = True,
     local = True,
 )

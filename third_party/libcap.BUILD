@@ -1,5 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
+REPO_ROOT = package_relative_label(":BUILD.bazel").workspace_root
+
 genrule(
     name = "cap_names_list",
     srcs = ["libcap/include/uapi/linux/capability.h"],
@@ -17,7 +19,7 @@ cc_binary(
         "libcap/_makenames.c",
         "libcap/include/sys/capability.h",
     ],
-    copts = ["-Iexternal/libcap/libcap/include"],
+    copts = ["-I" + REPO_ROOT + "/libcap/include"],
 )
 
 genrule(

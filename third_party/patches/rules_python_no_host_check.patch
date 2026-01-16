@@ -1,0 +1,50 @@
+--- a/python/private/toolchains_repo.bzl
++++ b/python/private/toolchains_repo.bzl
+@@ -355,25 +355,25 @@
+     is_windows = (os_name == WINDOWS_NAME)
+     python_binary = "python.exe" if is_windows else "python"
+
+-    # Ensure that we can run the interpreter and check that we are not
+-    # using the host interpreter.
+-    python_tester_contents = _HOST_PYTHON_TESTER_TEMPLATE.format(
+-        repo = repo.strip("@"),
+-        python = python_binary,
+-    )
+-    python_tester = rctx.path("python_tester.py")
+-    rctx.file(python_tester, python_tester_contents)
+-    repo_utils.execute_checked(
+-        rctx,
+-        op = "CheckHostInterpreter",
+-        arguments = [
+-            rctx.path(python_binary),
+-            # Run the interpreter in isolated mode, this options implies -E, -P and -s.
+-            # This ensures that environment variables are ignored that are set in userspace, such as PYTHONPATH,
+-            # which may interfere with this invocation.
+-            "-I",
+-            python_tester,
+-        ],
+-    )
+-    if not rctx.delete(python_tester):
+-        fail("Failed to delete the python tester")
++    # # Ensure that we can run the interpreter and check that we are not
++    # # using the host interpreter.
++    # python_tester_contents = _HOST_PYTHON_TESTER_TEMPLATE.format(
++    #     repo = repo.strip("@"),
++    #     python = python_binary,
++    # )
++    # python_tester = rctx.path("python_tester.py")
++    # rctx.file(python_tester, python_tester_contents)
++    # repo_utils.execute_checked(
++    #     rctx,
++    #     op = "CheckHostInterpreter",
++    #     arguments = [
++    #         rctx.path(python_binary),
++    #         # Run the interpreter in isolated mode, this options implies -E, -P and -s.
++    #         # This ensures that environment variables are ignored that are set in userspace, such as PYTHONPATH,
++    #         # which may interfere with this invocation.
++    #         "-I",
++    #         python_tester,
++    #     ],
++    # )
++    # if not rctx.delete(python_tester):
++    #     fail("Failed to delete the python tester")

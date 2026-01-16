@@ -1,5 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
+REPO_ROOT = package_relative_label(":BUILD.bazel").workspace_root
+
 GENFILES = [
     "include/MKterm.h.awk",
     "include/curses.h",
@@ -55,7 +57,7 @@ genrule(
         DIR=`pwd`
         cd -
         for i in $(OUTS); do
-          cp $$DIR/`echo $$i | sed -e 's|$(GENDIR)/external/ncurses/out/||'` $$i
+          cp $$DIR/`echo $$i | sed -e "s|$(GENDIR)/""" + REPO_ROOT + """/out/||"` $$i
         done
     """,
     toolchains = ["@rules_cc//cc:current_cc_toolchain"],
@@ -71,7 +73,7 @@ genrule(
     outs = GENFILES,
     cmd = """
         for i in $(OUTS); do
-          cp `echo $$i | sed -e 's|$(GENDIR)/external/ncurses/|third_party/ncurses/src/|'` $$i
+          cp `echo $$i | sed -e "s|$(GENDIR)/""" + REPO_ROOT + """/|third_party/ncurses/src/|"` $$i
         done
     """,
 )
@@ -197,9 +199,9 @@ cc_binary(
         "ncurses/tinfo/make_hash.c",
     ],
     copts = [
-        "-Iexternal/ncurses/include",
-        "-I$(GENDIR)/external/ncurses/include",
-        "-Iexternal/ncurses/ncurses",
+        "-I" + REPO_ROOT + "/include",
+        "-I$(GENDIR)/" + REPO_ROOT + "/include",
+        "-I" + REPO_ROOT + "/ncurses",
         "-D_XOPEN_SOURCE=600",
     ],
     deps = [":ncurses_internal"],
@@ -216,7 +218,7 @@ genrule(
     outs = ["ncurses/comp_captab.c"],
     cmd = """
         cp $(location :make_hash) .
-        bash $(location ncurses/tinfo/MKcaptab.sh) awk 1 $(location ncurses/tinfo/MKcaptab.awk) $(locations :caplist) > $@
+        $$BASH $(location ncurses/tinfo/MKcaptab.sh) awk 1 $(location ncurses/tinfo/MKcaptab.awk) $(locations :caplist) > $@
     """,
     tools = [":make_hash"],
 )
@@ -231,7 +233,7 @@ genrule(
     outs = ["ncurses/comp_userdefs.c"],
     cmd = """
         cp $(location :make_hash) .
-        bash $(location ncurses/tinfo/MKuserdefs.sh) awk 1 $(locations :caplist) > $@
+        $$BASH $(location ncurses/tinfo/MKuserdefs.sh) awk 1 $(locations :caplist) > $@
     """,
     tools = [":make_hash"],
 )
@@ -431,10 +433,10 @@ cc_library(
         "include/unctrl.h",
     ],
     copts = [
-        "-Iexternal/ncurses/include",
-        "-I$(GENDIR)/external/ncurses/include",
-        "-Iexternal/ncurses/ncurses",
-        "-I$(GENDIR)/external/ncurses/ncurses",
+        "-I" + REPO_ROOT + "/include",
+        "-I$(GENDIR)/" + REPO_ROOT + "/include",
+        "-I" + REPO_ROOT + "/ncurses",
+        "-I$(GENDIR)/" + REPO_ROOT + "/ncurses",
         "-D_XOPEN_SOURCE=600",
         "-DBUILDING_NCURSES",
         "-DNCURSES_STATIC",

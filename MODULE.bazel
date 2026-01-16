@@ -1,26 +1,628 @@
 module(
     name = "toktok-stack",
     version = "0.1",
+    repo_name = "toktok",
 )
 
 # https://github.com/bazelbuild/platforms/releases
-bazel_dep(name = "platforms", version = "0.0.10")
+bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "rules_license", version = "1.0.0")
 
-# https://github.com/bazelbuild/bazel-central-registry/tree/main/modules/curl
-bazel_dep(name = "curl", version = "8.8.0")
+# Core Rules
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "rules_cc", version = "0.2.16")
+bazel_dep(name = "rules_python", version = "1.8.2")
+single_version_override(
+    module_name = "rules_python",
+    patch_strip = 1,
+    patches = ["//third_party/patches:rules_python_no_host_check.patch"],
+)
 
-# https://github.com/bazelbuild/bazel-central-registry/tree/main/modules/libconfig
+bazel_dep(name = "rules_go", version = "0.59.0", repo_name = "io_bazel_rules_go")
+bazel_dep(name = "gazelle", version = "0.40.0", repo_name = "bazel_gazelle")
+bazel_dep(name = "rules_kotlin", version = "2.2.1")
+bazel_dep(name = "rules_jvm_external", version = "6.7")
+bazel_dep(name = "rules_apple", version = "4.3.3", repo_name = "build_bazel_rules_apple")
+bazel_dep(name = "rules_swift", version = "3.4.1", repo_name = "build_bazel_rules_swift")
+
+# Rust
+bazel_dep(name = "rules_rust", version = "0.68.1")
+
+# Rust bindgen
+bazel_dep(name = "rules_rust_bindgen", version = "0.68.1")
+
+# Fuzzing
+bazel_dep(name = "rules_fuzzing", version = "0.5.2")
+archive_override(
+    module_name = "rules_fuzzing",
+    integrity = "sha256-5rwhm/rJ4fg7Mn3QkPcoqflz7pm5tdjloYSicy7whiM=",
+    patch_strip = 1,
+    patches = ["//third_party/patches:rules_fuzzing_nix.patch"],
+    strip_prefix = "rules_fuzzing-0.5.2",
+    urls = ["https://github.com/bazel-contrib/rules_fuzzing/releases/download/v0.5.2/rules_fuzzing-0.5.2.zip"],
+)
+
+bazel_dep(name = "hermetic_cc_toolchain", version = "4.0.1")
+
+# Haskell
+bazel_dep(name = "rules_haskell", version = "1.0")
+bazel_dep(name = "rules_sh", version = "0.3.0")
+
+git_override(
+    module_name = "rules_haskell",
+    commit = "10a0d8daa89f02c71fb7634b76f2fd3b99d4133e",
+    patch_args = ["-p1"],
+    patches = [
+        "//third_party/patches:rules_haskell_nix.patch",
+        "//third_party/patches:rules_haskell_cc_wrapper_filter.patch",
+    ],
+    remote = "https://github.com/tweag/rules_haskell.git",
+)
+
+git_override(
+    module_name = "rules_sh",
+    commit = "5ecac74853d646ab5307dfc93fd413604aa1189b",
+    patch_args = ["-p0"],
+    patches = ["//third_party/patches:rules_sh_bash.patch"],
+    remote = "https://github.com/tweag/rules_sh.git",
+)
+
+# Patch rules_java to apply patchelf to the downloaded Java tools for Nix compatibility
+archive_override(
+    module_name = "rules_java",
+    integrity = "sha256-bvJtT5eOi0z1zh1HUy1wy2LNGEMSJ6HIAHyPeEMkPAY=",
+    patch_args = ["-p1"],
+    patches = ["//third_party/patches:rules_java_nix.patch"],
+    urls = ["https://github.com/bazelbuild/rules_java/releases/download/9.3.0/rules_java-9.3.0.tar.gz"],
+)
+
+# Nixpkgs
+bazel_dep(name = "rules_nixpkgs_core", version = "0.13.0")
+bazel_dep(name = "rules_nixpkgs_cc", version = "0.13.0")
+bazel_dep(name = "rules_nixpkgs_java", version = "0.13.0")
+bazel_dep(name = "rules_nixpkgs_python", version = "0.13.0")
+bazel_dep(name = "rules_nixpkgs_go", version = "0.13.0")
+bazel_dep(name = "rules_nixpkgs_rust", version = "0.13.0")
+bazel_dep(name = "rules_nixpkgs_posix", version = "0.13.0")
+bazel_dep(name = "rules_nixpkgs_nodejs", version = "0.13.0")
+
+nix_repo = use_extension("@rules_nixpkgs_core//extensions:repository.bzl", "nix_repo")
+nix_repo.github(
+    name = "nixpkgs",
+    commit = "1329c5271e0606536ef0c7b73b32417756a4ae07",
+    org = "NixOS",
+    repo = "nixpkgs",
+    sha256 = "f2fcbb09a6816de882e482759706c7b5eeadbaec6b69680f0bfda8668072e3e6",
+)
+use_repo(nix_repo, "nixpkgs")
+
+# TODO(iphydf): Remove these overrides once rules_nixpkgs 0.13.0 is in the registry.
+archive_override(
+    module_name = "rules_nixpkgs_core",
+    integrity = "sha256-MCcfe9OA5OIOTXEywySUbE/bwx6+C7tmOKD2GjfnQ5c=",
+    patch_strip = 1,
+    patches = ["//third_party/patches:rules_nixpkgs_core_layering_check.patch"],
+    strip_prefix = "rules_nixpkgs-0.13.0/core",
+    urls = ["https://github.com/tweag/rules_nixpkgs/releases/download/v0.13.0/rules_nixpkgs-0.13.0.tar.gz"],
+)
+
+archive_override(
+    module_name = "rules_nixpkgs_cc",
+    integrity = "sha256-MCcfe9OA5OIOTXEywySUbE/bwx6+C7tmOKD2GjfnQ5c=",
+    patch_strip = 1,
+    patches = ["//third_party/patches:rules_nixpkgs_cc_layering_check.patch"],
+    strip_prefix = "rules_nixpkgs-0.13.0/toolchains/cc",
+    urls = ["https://github.com/tweag/rules_nixpkgs/releases/download/v0.13.0/rules_nixpkgs-0.13.0.tar.gz"],
+)
+
+archive_override(
+    module_name = "rules_nixpkgs_java",
+    integrity = "sha256-MCcfe9OA5OIOTXEywySUbE/bwx6+C7tmOKD2GjfnQ5c=",
+    strip_prefix = "rules_nixpkgs-0.13.0/toolchains/java",
+    urls = ["https://github.com/tweag/rules_nixpkgs/releases/download/v0.13.0/rules_nixpkgs-0.13.0.tar.gz"],
+)
+
+archive_override(
+    module_name = "rules_nixpkgs_python",
+    integrity = "sha256-MCcfe9OA5OIOTXEywySUbE/bwx6+C7tmOKD2GjfnQ5c=",
+    patch_strip = 1,
+    patches = ["//third_party/patches:rules_nixpkgs_python_bazel8.patch"],
+    strip_prefix = "rules_nixpkgs-0.13.0/toolchains/python",
+    urls = ["https://github.com/tweag/rules_nixpkgs/releases/download/v0.13.0/rules_nixpkgs-0.13.0.tar.gz"],
+)
+
+archive_override(
+    module_name = "rules_nixpkgs_go",
+    integrity = "sha256-MCcfe9OA5OIOTXEywySUbE/bwx6+C7tmOKD2GjfnQ5c=",
+    strip_prefix = "rules_nixpkgs-0.13.0/toolchains/go",
+    urls = ["https://github.com/tweag/rules_nixpkgs/releases/download/v0.13.0/rules_nixpkgs-0.13.0.tar.gz"],
+)
+
+archive_override(
+    module_name = "rules_nixpkgs_rust",
+    integrity = "sha256-MCcfe9OA5OIOTXEywySUbE/bwx6+C7tmOKD2GjfnQ5c=",
+    strip_prefix = "rules_nixpkgs-0.13.0/toolchains/rust",
+    urls = ["https://github.com/tweag/rules_nixpkgs/releases/download/v0.13.0/rules_nixpkgs-0.13.0.tar.gz"],
+)
+
+archive_override(
+    module_name = "rules_nixpkgs_posix",
+    integrity = "sha256-MCcfe9OA5OIOTXEywySUbE/bwx6+C7tmOKD2GjfnQ5c=",
+    strip_prefix = "rules_nixpkgs-0.13.0/toolchains/posix",
+    urls = ["https://github.com/tweag/rules_nixpkgs/releases/download/v0.13.0/rules_nixpkgs-0.13.0.tar.gz"],
+)
+
+archive_override(
+    module_name = "rules_nixpkgs_nodejs",
+    integrity = "sha256-MCcfe9OA5OIOTXEywySUbE/bwx6+C7tmOKD2GjfnQ5c=",
+    strip_prefix = "rules_nixpkgs-0.13.0/toolchains/nodejs",
+    urls = ["https://github.com/tweag/rules_nixpkgs/releases/download/v0.13.0/rules_nixpkgs-0.13.0.tar.gz"],
+)
+
+# Libraries
+bazel_dep(name = "boringssl", version = "0.20241209.0")
+bazel_dep(name = "bzip2", version = "1.0.8")
+bazel_dep(name = "curl", version = "8.11.0.bcr.4")
+bazel_dep(name = "cython", version = "3.0.11-1", repo_name = "cython")
+bazel_dep(name = "ftxui", version = "6.1.9")
+bazel_dep(name = "google_benchmark", version = "1.9.5", repo_name = "benchmark")
+single_version_override(
+    module_name = "google_benchmark",
+    patch_strip = 1,
+    patches = ["//third_party/patches:google_benchmark_windows_gnu.patch"],
+)
+
+bazel_dep(name = "googletest", version = "1.17.0", repo_name = "com_google_googletest")
 bazel_dep(name = "libconfig", version = "1.7.3")
+bazel_dep(name = "nlohmann_json", version = "3.12.0.bcr.1", repo_name = "json")
+bazel_dep(name = "protobuf", version = "32.1")
+bazel_dep(name = "rules_java", version = "9.3.0")
+bazel_dep(name = "zlib", version = "1.3.1.bcr.5")
 
-# https://github.com/bazelbuild/bazel-central-registry/tree/main/modules/protobuf
-bazel_dep(name = "protobuf", version = "28.3")
+# Note: libzmq, libvpx, ffmpeg are not in BCR or require complex setup, keeping in non_module_deps for now.
+
+nix_cc = use_extension("//tools/workspace:nix_cc.bzl", "nix_cc")
+use_repo(nix_cc, "nixpkgs_cc_toolchain", "nixpkgs_cc_toolchain_info", "nixpkgs_cc_toolchain_toolchains")
+
+nix_java = use_extension("//tools/workspace:nix_java.bzl", "nix_java")
+use_repo(nix_java, "nixpkgs_java", "nixpkgs_java_toolchain")
+
+nix_python = use_extension("//tools/workspace:nix_python.bzl", "nix_python")
+use_repo(nix_python, "nixpkgs_python_toolchain")
+
+nix_rust = use_extension("//tools/workspace:nix_rust.bzl", "nix_rust")
+use_repo(nix_rust, "nixpkgs_bindgen", "nixpkgs_libclang", "nixpkgs_rust", "nixpkgs_rust_toolchain")
+
+# Fallback Rust toolchain for non-nix builds (e.g., the local-build CI job).
+# Must be recent enough to compile our crate-universe deps (edition 2024, const
+# cast_signed → needs >= 1.88). Matches nix's pin to avoid version drift.
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2024",
+    versions = ["1.91.0"],
+)
+use_repo(rust, "rust_toolchains")
+
+nix_sh = use_extension("//tools/workspace:nix_sh.bzl", "nix_sh")
+use_repo(nix_sh, "nixpkgs_sh_toolchain")
+
+register_toolchains("@nixpkgs_sh_toolchain//:all")
+
+register_toolchains("@nixpkgs_cc_toolchain_toolchains//:all")
+
+register_toolchains("@nixpkgs_java_toolchain//:all")
+
+register_toolchains("@nixpkgs_python_toolchain//:all")
+
+register_toolchains("@nixpkgs_rust_toolchain//:all")
+
+# Registered after the nix toolchain so the nix one wins under --config=nix
+# (more specific exec constraints). Non-nix builds fall through to this.
+register_toolchains("@rust_toolchains//:all")
+
+register_toolchains("@nixpkgs_bindgen//:toolchain")
+
+register_toolchains("@rules_haskell_ghc_nixpkgs_toolchain//:all")
+
+crate = use_extension("@rules_rust//crate_universe:extension.bzl", "crate")
+crate.spec(
+    package = "anyhow",
+    version = "1.0.100",
+)
+crate.spec(
+    package = "base64",
+    version = "0.22.1",
+)
+crate.spec(
+    package = "bitflags",
+    version = "2.10.0",
+)
+crate.spec(
+    package = "blake3",
+    version = "1.8.2",
+)
+crate.spec(
+    package = "chacha20",
+    version = "0.9.1",
+)
+crate.spec(
+    package = "chacha20poly1305",
+    version = "0.10.1",
+)
+crate.spec(
+    features = ["serde"],
+    package = "chrono",
+    version = "0.4.42",
+)
+crate.spec(
+    package = "chrono-tz",
+    version = "0.10.4",
+)
+crate.spec(
+    features = ["derive"],
+    package = "clap",
+    version = "4.5.53",
+)
+crate.spec(
+    package = "criterion",
+    version = "0.8.1",
+)
+crate.spec(
+    package = "crossbeam",
+    version = "0.8.4",
+)
+crate.spec(
+    package = "crossterm",
+    version = "0.29.0",
+)
+crate.spec(
+    package = "curve25519-dalek",
+    version = "5.0.0-pre.3",
+)
+crate.spec(
+    package = "directories",
+    version = "6.0.0",
+)
+crate.spec(
+    package = "ed25519-dalek",
+    version = "3.0.0-pre.3",
+)
+crate.spec(
+    package = "filetime",
+    version = "0.2.26",
+)
+crate.spec(
+    package = "fs2",
+    version = "0.4.3",
+)
+crate.spec(
+    package = "futures",
+    version = "0.3.31",
+)
+crate.spec(
+    default_features = False,
+    package = "git2",
+    version = "0.20.3",
+)
+crate.spec(
+    package = "hex",
+    version = "0.4.3",
+)
+crate.spec(
+    package = "hkdf",
+    version = "0.13.0-rc.3",
+)
+crate.spec(
+    package = "indexmap",
+    version = "2.12.1",
+)
+crate.spec(
+    package = "insta",
+    version = "1.45.1",
+)
+crate.spec(
+    package = "itertools",
+    version = "0.14.0",
+)
+crate.spec(
+    package = "lru",
+    version = "0.16.3",
+)
+crate.spec(
+    package = "memmap2",
+    version = "0.9.9",
+)
+crate.spec(
+    package = "parking_lot",
+    version = "0.12.5",
+)
+crate.spec(
+    package = "petgraph",
+    version = "0.8.3",
+)
+crate.spec(
+    package = "proc-macro2",
+    version = "1.0.104",
+)
+crate.spec(
+    package = "proptest",
+    version = "1.9.0",
+)
+crate.spec(
+    package = "proptest-derive",
+    version = "0.7.0",
+)
+crate.spec(
+    package = "qoi",
+    version = "0.4.1",
+)
+crate.spec(
+    package = "qrcode",
+    version = "0.14.1",
+)
+crate.spec(
+    package = "quote",
+    version = "1.0.42",
+)
+crate.spec(
+    package = "rand",
+    version = "0.8.5",
+)
+crate.spec(
+    package = "ratatui",
+    version = "0.30.0",
+)
+crate.spec(
+    package = "regex",
+    version = "1.12.2",
+)
+crate.spec(
+    package = "resvg",
+    version = "0.45.1",
+)
+crate.spec(
+    default_features = False,
+    features = [
+        "json",
+        "rustls-tls",
+    ],
+    package = "reqwest",
+    version = "0.12.12",
+)
+crate.spec(
+    features = ["sync"],
+    package = "rhai",
+    version = "1.23.6",
+)
+crate.spec(
+    package = "rmp",
+    version = "0.8.15",
+)
+crate.spec(
+    package = "rmp-serde",
+    version = "1.3.1",
+)
+crate.spec(
+    features = ["serialize"],
+    package = "rusqlite",
+    version = "0.38.0",
+)
+crate.spec(
+    features = ["derive"],
+    package = "serde",
+    version = "1.0.218",
+)
+crate.spec(
+    package = "serde-big-array",
+    version = "0.5.1",
+)
+crate.spec(
+    package = "serde_bytes",
+    version = "0.11.19",
+)
+crate.spec(
+    package = "serde_json",
+    version = "1.0.147",
+)
+crate.spec(
+    package = "serde_repr",
+    version = "0.1.20",
+)
+crate.spec(
+    package = "sha2",
+    version = "0.11.0-rc.3",
+)
+crate.spec(
+    features = ["serde"],
+    package = "smallvec",
+    version = "2.0.0-alpha.12",
+)
+crate.spec(
+    package = "subtle",
+    version = "2.6.1",
+)
+crate.spec(
+    package = "syn",
+    version = "2.0.111",
+)
+crate.spec(
+    package = "tempfile",
+    version = "3.24.0",
+)
+crate.spec(
+    package = "thiserror",
+    version = "2.0.17",
+)
+crate.spec(
+    package = "tiny-skia",
+    version = "0.11.4",
+)
+crate.spec(
+    features = ["full"],
+    package = "tokio",
+    version = "1.48.0",
+)
+crate.spec(
+    package = "tracing",
+    version = "0.1.44",
+)
+crate.spec(
+    features = ["env-filter"],
+    package = "tracing-subscriber",
+    version = "0.3.22",
+)
+crate.spec(
+    package = "unicode-segmentation",
+    version = "1.12.0",
+)
+crate.spec(
+    package = "unicode-width",
+    version = "0.2.2",
+)
+crate.spec(
+    features = ["static_secrets"],
+    package = "x25519-dalek",
+    version = "3.0.0-pre.3",
+)
+crate.spec(
+    features = ["derive"],
+    package = "zeroize",
+    version = "1.8.2",
+)
+crate.spec(
+    package = "zstd",
+    version = "0.13.3",
+)
+crate.annotation(
+    crate = "libsqlite3-sys",
+    deps = ["@@+non_module_deps+sqlcipher//:sqlite3"],
+)
+crate.from_specs(
+    host_tools = "@nixpkgs_rust//:BUILD.bazel",
+)
+use_repo(crate, "crates")
 
 # Hedron's Compile Commands Extractor for Bazel
-# https://github.com/hedronvision/bazel-compile-commands-extractor
 bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
 git_override(
     module_name = "hedron_compile_commands",
-    commit = "4f28899228fb3ad0126897876f147ca15026151e",
+    commit = "abb61a688167623088f8768cc9264798df6a9d10",
     remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
+)
+
+toolchains = use_extension("@hermetic_cc_toolchain//toolchain:ext.bzl", "toolchains")
+use_repo(toolchains, "zig_sdk")
+
+# Maven
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    artifacts = [
+        "org.jetbrains.kotlin:kotlin-test-junit:2.1.0",
+        "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1",
+    ],
+    repositories = [
+        "https://repo1.maven.org/maven2",
+    ],
+)
+maven.artifact(
+    testonly = True,
+    artifact = "kotlin-test-junit",
+    group = "org.jetbrains.kotlin",
+    version = "2.1.0",
+)
+use_repo(maven, "maven")
+
+# Non-module deps (legacy WORKSPACE deps)
+non_module_deps = use_extension("//tools/workspace:non_module_deps.bzl", "non_module_deps")
+use_repo(
+    non_module_deps,
+    "alsa-lib",
+    "asound",
+    "autoconf",
+    "automake",
+    "bash",
+    "certifi",
+    "chardet",
+    "cmake",
+    "com_github_gorilla_websocket",
+    "com_github_kardianos_osext",
+    "com_github_petermattis_goid",
+    "com_github_sasha_s_go_deadlock",
+    "com_github_streamrail_concurrent_map",
+    "com_github_things_go_go_socks5",
+    "diffutils",
+    "ev",
+    "ffmpeg",
+    "ffnvcodec",
+    "gettext",
+    "git",
+    "gl",
+    "gl.out",
+    "glvnd",
+    "glvnd.out",
+    "gnumake",
+    "haskellPackages.alex",
+    "haskellPackages.c2hs",
+    "haskellPackages.happy",
+    "haskellPackages.hspec-discover",
+    "idna",
+    "kimageformats",
+    "libbacktrace",
+    "libcap",
+    "libexif",
+    "libidn2",
+    "libqrencode",
+    "libsodium",
+    "libtool",
+    "libunwind",
+    "libvpx",
+    "libxz",
+    "libzmq",
+    "m4",
+    "mypy",
+    "mypy_extensions",
+    "ncurses",
+    "openal",
+    "openssl",
+    "openssl.out",
+    "opus",
+    "pandoc",
+    "patchelf",
+    "pcre",
+    "pcre.out",
+    "perl",
+    "psocket",
+    "pthread",
+    "pthread_w32",
+    "python3",
+    "python3_config",
+    "qt",
+    "qt6.qtbase",
+    "qt6.qtbase.out",
+    "qt6.qtremoteobjects",
+    "qt6.qtremoteobjects.out",
+    "qt6.qtsvg",
+    "qt6.qtsvg.out",
+    "requests",
+    "rules_haskell_ghc_nixpkgs",
+    "rules_haskell_ghc_nixpkgs_toolchain",
+    "sdl2",
+    "simdjson",
+    "sqlcipher",
+    "tcl",
+    "typeshed",
+    "typing_extensions",
+    "urllib3",
+    "x11",
+    "x11.out",
+    "xcb",
+    "xcb.out",
+    "xext",
+    "xext.out",
+    "xproto",
+    "xss",
+    "xxf86vm",
+    "xxf86vm.out",
+    "xz",
+    "yasm",
 )

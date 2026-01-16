@@ -1,0 +1,11 @@
+--- a/cc.bzl
++++ b/cc.bzl
+@@ -208,7 +208,7 @@
+                     [":cc_wrapper"] if darwin else []
+                 ),
+             ),
+-            "%{compiler}": "compiler",
++            "%{compiler}": "clang" if info.is_clang else "compiler",
+             "%{abi_version}": "local",
+             "%{abi_libc_version}": "local",
+             "%{host_system_name}": "local",

@@ -1,6 +1,8 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@toktok//third_party/qt:build_defs.bzl", "qt_moc")
 
+REPO_ROOT = package_relative_label(":BUILD.bazel").workspace_root
+
 qt_moc(
     name = "kimageformats_moc",
     srcs = ["src/imageformats/xcf.cpp"] + glob(
@@ -41,7 +43,7 @@ cc_library(
     ),
     copts = [
         "-I.",
-        "-I$(GENDIR)/external/kimageformats/src/imageformats",
+        "-I$(GENDIR)/" + REPO_ROOT + "/src/imageformats",
         "-DQT_STATICPLUGIN",
     ],
     textual_hdrs = [":kimageformats_moc"],

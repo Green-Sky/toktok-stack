@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 import ast
 import collections
+import glob
+import os
 import re
 import sys
+from dataclasses import dataclass
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Set
 from typing import Union
 
@@ -12,106 +16,252 @@ PackageSection = Dict[str, Union[str, List[str]]]
 PackageData = Dict[str, PackageSection]
 
 
-def parse_bazel(build: str) -> PackageData:
+@dataclass
+class BazelTarget:
+    name: str
+    rule_type: str
+    deps: List[str]
+    srcs: List[str]
+    src_strip_prefix: Optional[str] = None
+    version: Optional[str] = None
+
+
+def parse_bazel(build: str) -> Dict[str, BazelTarget]:
     with open(build, "r") as fh:
         bzl = ast.parse(fh.read(), filename=build)
 
-    data: PackageData = {}
+    targets: Dict[str, BazelTarget] = {}
+    constants: Dict[str, str] = {}
+
+    def extract_list(node):
+        if isinstance(node, ast.List):
+            res = []
+            for elt in node.elts:
+                res.extend(extract_list(elt))
+            return res
+        if isinstance(node, ast.Constant):
+            return [node.value]
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == "glob"):
+            res = []
+            for arg in node.args:
+                res.extend(extract_list(arg))
+            return res
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            return extract_list(node.left) + extract_list(node.right)
+        return []
 
     for stmt in bzl.body:
+        if isinstance(stmt, ast.Assign):
+            for target in stmt.targets:
+                if isinstance(target, ast.Name) and isinstance(
+                        stmt.value, ast.Constant):
+                    constants[target.id] = stmt.value.value
+
         if (isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call)
                 and isinstance(stmt.value.func, ast.Name)
-                and stmt.value.func.id in ("haskell_library", "hspec_test")):
-            section: Dict[str, Union[str, List[str]]] = {}
+                and stmt.value.func.id in (
+                    "haskell_library",
+                    "hspec_test",
+                    "alex_lexer",
+                    "happy_parser",
+                    "c2hs_library",
+                )):
+
+            rule_type = stmt.value.func.id
+            name = ""
+            version = None
+            deps = []
+            srcs = []
+            src_strip_prefix = None
+
             for arg in stmt.value.keywords:
-                if arg.arg == "name" and isinstance(arg.value, ast.Str):
-                    data[arg.value.s] = section
-                if arg.arg == "version" and isinstance(arg.value, ast.Str):
-                    section["version"] = arg.value.s
-                if arg.arg == "deps" and isinstance(arg.value, ast.List):
-                    deps = []
+                if arg.arg == "name" and isinstance(arg.value, ast.Constant):
+                    name = arg.value.value
+                elif arg.arg == "version":
+                    if isinstance(arg.value, ast.Constant):
+                        version = arg.value.value
+                    elif isinstance(arg.value,
+                                    ast.Name) and arg.value.id in constants:
+                        version = constants[arg.value.id]
+                elif arg.arg == "deps" and isinstance(arg.value, ast.List):
                     for dep in arg.value.elts:
                         if isinstance(dep, ast.Call) and isinstance(
-                                dep.args[0], ast.Str):
-                            deps.append(dep.args[0].s)
-                        elif isinstance(dep, ast.Str):
-                            deps.append(dep.s)
+                                dep.args[0], ast.Constant):
+                            deps.append(dep.args[0].value)
+                        elif isinstance(dep, ast.Constant):
+                            deps.append(dep.value)
                         else:
                             raise Exception(ast.dump(dep))
-                    section["deps"] = deps
+                elif arg.arg == "srcs":
+                    srcs = extract_list(arg.value)
+                elif arg.arg == "src" and isinstance(arg.value, ast.Constant):
+                    srcs = [arg.value.value]
+                elif arg.arg == "src_strip_prefix" and isinstance(
+                        arg.value, ast.Constant):
+                    src_strip_prefix = arg.value.value
 
-    return data
+            if name:
+                targets[name] = BazelTarget(
+                    name=name,
+                    rule_type=rule_type,
+                    deps=deps,
+                    srcs=srcs,
+                    src_strip_prefix=src_strip_prefix,
+                    version=version,
+                )
+
+    return targets
 
 
 def parse_cabal(cabal: str) -> Dict[str, PackageData]:
-    data: Dict[str, PackageData] = (
-        collections.defaultdict(lambda: collections.defaultdict(dict)))
+    data: Dict[str, PackageData] = collections.defaultdict(
+        lambda: collections.defaultdict(dict))
     section = data[""][""]
     key = ""
     value = ""
 
+    def save_key():
+        nonlocal key, value
+        if key:
+            if "," in value:
+                values = [v.strip() for v in value.split(",")]
+            else:
+                values = value.split()
+            section[key] = values if len(values) > 1 else (
+                values[0] if values else "")
+            key = ""
+            value = ""
+
     with open(cabal, "r") as fh:
         for line in fh.readlines():
             line = line.rstrip()
+            if not line or line.isspace():
+                continue
             res = re.match(r"\s*([a-z-]+):\s*(.*)$", line)
             if res:
-                if key:
-                    values = value.split(", ")
-                    section[key] = values if len(values) > 1 else value
-                    key = ""
+                save_key()
                 key, value = res.group(1, 2)
                 continue
             res = re.match(r"([a-z-]+)\s*([a-z-]*)$", line)
             if res:
-                if key:
-                    values = value.split(", ")
-                    section[key] = values if len(values) > 1 else value
-                    key = ""
+                save_key()
                 section = data[res.group(1)][res.group(2)]
                 section["__name__"] = line
                 continue
-            value += line.strip()
-        if key:
-            values = list(value.split(", "))
-            section[key] = values if len(values) > 1 else value
+            if key:
+                value += " " + line.strip()
+        save_key()
     return data
 
 
 def resolve_bazel_deps(
-        bazel: str,
-        data: PackageData,
-        name: str,
+    bazel: str,
+    targets: Dict[str, BazelTarget],
+    name: str,
 ) -> Set[str]:
-    def go(name: str) -> List[str]:
-        deps = []
-        rule = data.get(name, None)
-        if not rule:
-            print(f"missing rule for '{name}' in {bazel} {data}")
+
+    def go(current_name: str) -> List[str]:
+        resolved = []
+        target = targets.get(current_name)
+        if not target:
+            print(f"missing rule for '{current_name}' in {bazel}")
             sys.exit(1)
-        for dep in rule["deps"]:
+        for dep in target.deps:
             if dep.startswith(":hs-"):
-                deps.append(dep[len(":hs-"):])
+                resolved.append(dep[len(":hs-"):])
             elif dep.startswith("//hs-"):
-                deps.append(dep[len("//hs-"):])
+                resolved.append(dep[len("//hs-"):])
             elif dep.startswith("//c-"):
                 pass  # ignore native deps for now
             elif dep.startswith(":"):
-                if name != "testsuite":
-                    deps.extend(go(dep[1:]))
+                if current_name != "testsuite":
+                    resolved.extend(go(dep[1:]))
             elif dep.startswith("//third_party/haskell:"):
-                deps.append(dep[len("//third_party/haskell:"):])
+                resolved.append(dep[len("//third_party/haskell:"):])
             else:
                 raise Exception(f"deps contains unhandled dependency {dep}")
-        return deps
+        return resolved
 
     return set(go(name))
 
 
+def path_to_module(path: str, prefix: Optional[str]) -> str:
+    if prefix:
+        if path.startswith(prefix + "/"):
+            path = path[len(prefix) + 1:]
+        elif path == prefix:
+            path = ""
+
+    if path.endswith(".hs"):
+        path = path[:-3]
+    elif path.endswith(".lhs"):
+        path = path[:-4]
+    elif path.endswith(".hsc"):
+        path = path[:-4]
+    elif path.endswith(".chs"):
+        path = path[:-4]
+    elif path.endswith(".x"):
+        path = path[:-2]
+    elif path.endswith(".y"):
+        path = path[:-2]
+
+    return path.replace("/", ".")
+
+
+def resolve_bazel_modules(
+    bazel_path: str,
+    targets: Dict[str, BazelTarget],
+    name: str,
+    recursive: bool = True,
+    default_src_strip_prefix: Optional[str] = None,
+) -> Set[str]:
+    target = targets.get(name)
+    if not target:
+        return set()
+
+    bazel_dir = os.path.dirname(bazel_path)
+    modules = set()
+
+    srcs = target.srcs
+    src_strip_prefix = target.src_strip_prefix or default_src_strip_prefix
+    if target.rule_type == "hspec_test":
+        if not srcs:
+            srcs = ["test/*/**/*.*hs"]
+        if not src_strip_prefix:
+            src_strip_prefix = "test"
+
+    for src in srcs:
+        if src.startswith(":"):
+            modules |= resolve_bazel_modules(bazel_path, targets, src[1:],
+                                             recursive, src_strip_prefix)
+            continue
+
+        # Simple glob support
+        if "*" in src:
+            pattern = os.path.join(bazel_dir, src)
+            matches = glob.glob(pattern, recursive=True)
+            for match in matches:
+                rel_match = os.path.relpath(match, bazel_dir)
+                modules.add(path_to_module(rel_match, src_strip_prefix))
+        else:
+            modules.add(path_to_module(src, src_strip_prefix))
+
+    # Also include modules from local dependencies
+    if recursive:
+        for dep in target.deps:
+            if dep.startswith(":"):
+                modules |= resolve_bazel_modules(bazel_path, targets, dep[1:],
+                                                 recursive, src_strip_prefix)
+
+    return {m for m in modules if m}
+
+
 def must_list(maybe_list: Union[str, List[str]]) -> List[str]:
     if isinstance(maybe_list, list):
-        return maybe_list
+        return [v for v in maybe_list if v]
     else:
-        return [maybe_list]
+        return [maybe_list] if maybe_list else []
 
 
 def must_str(maybe_list: Union[str, List[str]]) -> str:
@@ -122,77 +272,165 @@ def must_str(maybe_list: Union[str, List[str]]) -> str:
 
 
 def check_deps(
-        bazel: str,
-        cabal: str,
-        bazel_data: PackageData,
-        bazel_name: str,
-        cabal_section: PackageSection,
-) -> None:
-    bazel_deps = resolve_bazel_deps(bazel, bazel_data, bazel_name)
+    bazel: str,
+    cabal: str,
+    bazel_deps: Set[str],
+    display_name: str,
+    cabal_section: PackageSection,
+) -> bool:
     cabal_deps = {
         dep.split(" ")[0]
-        for dep in must_list(cabal_section["build-depends"])
+        for dep in must_list(cabal_section.get("build-depends", []))
     }
 
     cabal_missing = sorted(bazel_deps - cabal_deps)
-    section = cabal_section["__name__"]
+    section = cabal_section.get("__name__", "unknown")
     if cabal_missing:
         print("{cabal} is missing deps for section "
-              "'{section}' from {bazel} '{bazel_name}': "
+              "'{section}' from {bazel} '{display_name}': "
               "{cabal_missing}".format(
                   cabal=cabal,
                   section=section,
                   bazel=bazel,
-                  bazel_name=bazel_name,
+                  display_name=display_name,
                   cabal_missing=cabal_missing,
               ))
-        sys.exit(1)
+        return True
 
     bazel_missing = sorted(cabal_deps - bazel_deps)
     if bazel_missing:
-        print("{bazel} is missing deps for '{bazel_name}' from "
+        print("{bazel} is missing deps for '{display_name}' from "
               "{cabal} section '{section}: "
               "{bazel_missing}".format(
                   bazel=bazel,
-                  bazel_name=bazel_name,
+                  display_name=display_name,
                   cabal=cabal,
                   section=section,
                   bazel_missing=bazel_missing,
               ))
-        sys.exit(1)
+        return True
+    return False
+
+
+def check_modules(
+    bazel: str,
+    cabal: str,
+    bazel_modules: Set[str],
+    display_name: str,
+    cabal_section: PackageSection,
+    module_keys: List[str],
+) -> bool:
+    cabal_modules = set()
+    for key in module_keys:
+        cabal_modules |= set(must_list(cabal_section.get(key, [])))
+
+    cabal_missing = sorted(bazel_modules - cabal_modules)
+    section = cabal_section.get("__name__", "unknown")
+    if cabal_missing:
+        print("{cabal} is missing modules for section "
+              "'{section}' from {bazel} '{display_name}': "
+              "{cabal_missing}".format(
+                  cabal=cabal,
+                  section=section,
+                  bazel=bazel,
+                  display_name=display_name,
+                  cabal_missing=cabal_missing,
+              ))
+        return True
+
+    bazel_missing = sorted(cabal_modules - bazel_modules)
+    if bazel_missing:
+        print("{bazel} is missing modules for '{display_name}' from "
+              "{cabal} section '{section}: "
+              "{bazel_missing}".format(
+                  bazel=bazel,
+                  display_name=display_name,
+                  cabal=cabal,
+                  section=section,
+                  bazel_missing=bazel_missing,
+              ))
+        return True
+    return False
 
 
 def check_version(
-        root: PackageSection,
-        bazel_data: PackageData,
-        package_name: str,
+    root: PackageSection,
+    targets: Dict[str, BazelTarget],
 ) -> None:
     cabal_version = root["version"]
-    bazel_version = bazel_data["hs-" + package_name]["version"]
-    if cabal_version != bazel_version:
-        print("bazel version ({bazel_version}) and cabal version "
-              "({cabal_version}) disagree".format(
-                  bazel_version=bazel_version,
-                  cabal_version=cabal_version,
-              ))
+
+    versions = {
+        target.name: target.version
+        for target in targets.values()
+        if target.rule_type == "haskell_library" and target.version is not None
+    }
+
+    if len(versions) == 1:
+        target_name, bazel_version = list(versions.items())[0]
+        if bazel_version != cabal_version:
+            print(
+                "bazel version ({bazel_version}) for target {target_name} and cabal version "
+                "({cabal_version}) disagree".format(
+                    bazel_version=bazel_version,
+                    target_name=target_name,
+                    cabal_version=cabal_version,
+                ))
+            sys.exit(1)
+    elif len(versions) > 1:
+        print("multiple targets have a version set: {targets}".format(
+            targets=", ".join(versions.keys())))
         sys.exit(1)
 
 
 def main(args: List[str]) -> None:
     bazel, cabal = args
 
-    bazel_data = parse_bazel(bazel)
+    targets = parse_bazel(bazel)
     cabal_data = parse_cabal(cabal)
 
     root = cabal_data[""][""]
-    package_name = must_str(root["name"])
 
-    check_deps(bazel, cabal, bazel_data, "hs-" + package_name,
-               cabal_data["library"][""])
-    check_deps(bazel, cabal, bazel_data, "testsuite",
-               cabal_data["test-suite"]["testsuite"])
+    library_deps: Set[str] = set()
+    library_modules: Set[str] = set()
+    for target in targets.values():
+        if target.rule_type == "haskell_library" and target.name != "hic-test-utils":
+            library_deps |= resolve_bazel_deps(bazel, targets, target.name)
+            library_modules |= resolve_bazel_modules(bazel, targets,
+                                                     target.name)
 
-    check_version(root, bazel_data, package_name)
+    error = False
+    error |= check_deps(bazel, cabal, library_deps, "all libraries",
+                        cabal_data["library"][""])
+    error |= check_modules(
+        bazel,
+        cabal,
+        library_modules,
+        "all libraries",
+        cabal_data["library"][""],
+        ["exposed-modules", "other-modules"],
+    )
+
+    test_deps = resolve_bazel_deps(bazel, targets, "testsuite")
+    error |= check_deps(bazel, cabal, test_deps, "testsuite",
+                        cabal_data["test-suite"]["testsuite"])
+
+    test_modules = resolve_bazel_modules(bazel,
+                                         targets,
+                                         "testsuite",
+                                         recursive=False)
+    error |= check_modules(
+        bazel,
+        cabal,
+        test_modules,
+        "testsuite",
+        cabal_data["test-suite"]["testsuite"],
+        ["other-modules"],
+    )
+
+    check_version(root, targets)
+
+    if error:
+        sys.exit(1)
 
 
 main(sys.argv[1:])

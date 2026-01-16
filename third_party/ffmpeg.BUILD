@@ -1,10 +1,12 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "objc_library")
 load("@toktok//third_party/yasm:build_defs.bzl", "asm_library")
 
+REPO_ROOT = package_relative_label(":BUILD.bazel").workspace_root
+
 COPTS = [
     "-DPIC",
     "-DZLIB_CONST",
-    "-Iexternal/ffmpeg/libavcodec",
+    "-I" + REPO_ROOT + "/libavcodec",
     "-I$(GENDIR)/third_party/ffmpeg/platform",
 ] + select({
     "@toktok//tools/config:freebsd": [],
@@ -16,7 +18,7 @@ COPTS = [
     "@toktok//tools/config:osx": [],
     "@toktok//tools/config:windows": [
         "-D_USE_MATH_DEFINES",
-        "-Iexternal/ffmpeg/compat/atomics/win32",
+        "-I" + REPO_ROOT + "/compat/atomics/win32",
     ],
 }) + select({
     "@toktok//tools/config:windows": [
@@ -188,7 +190,7 @@ asm_library(
     ],
     archive = False,
     asmopts = [
-        "-Iexternal/ffmpeg",
+        "-I" + REPO_ROOT,
         "-I$(GENDIR)/third_party/ffmpeg",
         "-Pconfig.asm",
         "-DPIC",
@@ -235,7 +237,7 @@ genrule(
         DIR=`pwd`
         cd -
         for i in $(OUTS); do
-          cp $$DIR/`echo $$i | sed -e 's|$(GENDIR)/external/ffmpeg/||'` $$i
+          cp $$DIR/`echo $$i | sed -e "s|$(GENDIR)/""" + REPO_ROOT + """/||"` $$i
         done
     """,
     toolchains = ["@rules_cc//cc:current_cc_toolchain"],
@@ -249,7 +251,7 @@ genrule(
         "VERSION",
     ],
     outs = ["libavutil/ffversion.h"],
-    cmd = "$(location ffbuild/version.sh) external/ffmpeg ffversion.h && mv ffversion.h $@",
+    cmd = "mkdir -p $$(dirname $@) && $(location ffbuild/version.sh) " + REPO_ROOT + " ffversion.h && mv ffversion.h $@",
 )
 
 cc_library(

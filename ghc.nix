@@ -4,10 +4,14 @@ with (import <nixpkgs> { });
 {
   ghc = haskellPackages.ghcWithPackages.override { installDocumentation = false; } (
     p: with p; [
+      Diff
+      MonadRandom
+      QuickCheck
       aeson
       aeson-pretty
       array
       async
+      attoparsec
       base
       base16-bytestring
       binary
@@ -25,7 +29,6 @@ with (import <nixpkgs> { });
       data-default-class
       data-fix
       deepseq
-      Diff
       directory
       edit-distance
       entropy
@@ -37,42 +40,46 @@ with (import <nixpkgs> { });
       generic-arbitrary
       github
       groom
+      happy-lib
       hashable
       hspec
       html
       http-client
       http-client-tls
+      http-conduit
       http-media
       http-types
+      insert-ordered-containers
       integer-gmp
       iproute
-      insert-ordered-containers
       language-c
       lens-family
       microlens
       microlens-mtl
       microlens-th
       monad-control
+      monad-logger
       monad-parallel
-      MonadRandom
       monad-validate
       mtl
       network
+      optparse-applicative
       parallel
       pretty
       prettyprinter
       prettyprinter-ansi-terminal
       process
-      QuickCheck
       quickcheck-instances
       quickcheck-text
       random
       recursion-schemes
+      resourcet
       saltine
       scientific
       servant
       servant-server
       split
+      stm
       suspend
       tabular
       text

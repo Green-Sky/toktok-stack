@@ -1,0 +1,12 @@
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -43,3 +43,9 @@
+     local_defines = ["CONFIGURED"],
+     visibility = ["//visibility:public"],
+ )
++
++filegroup(
++    name = "headers",
++    srcs = glob(["src/**/*.h"]) + [":version_hdr"],
++    visibility = ["//visibility:public"],
++)

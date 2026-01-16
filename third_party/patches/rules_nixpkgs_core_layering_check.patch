@@ -1,0 +1,37 @@
+--- a/private/cc_toolchain/unix_cc_toolchain_config.bzl	2026-01-14 22:44:30.000000000 +0000
++++ b/private/cc_toolchain/unix_cc_toolchain_config.bzl	2026-01-14 22:45:37.000000000 +0000
+@@ -53,14 +53,22 @@
+                     ],
+                     flag_groups = [
+                         flag_group(
+-                            # macOS requires -Xclang because of a bug in Apple Clang
+                             flags = (["-Xclang"] if is_macos else []) + [
+                                 "-fmodule-name=%{module_name}",
+-                            ] + (["-Xclang"] if is_macos else []) + [
++                            ],
++                            expand_if_available = "module_name",
++                        ),
++                        flag_group(
++                            flags = (["-Xclang"] if is_macos else []) + [
+                                 "-fmodule-map-file=%{module_map_file}",
+-                            ] + extra_flags_per_feature.get("use_module_maps", []),
++                            ],
++                            expand_if_available = "module_map_file",
+                         ),
+-                    ],
++                    ] + ([
++                        flag_group(
++                            flags = extra_flags_per_feature.get("use_module_maps"),
++                        ),
++                    ] if extra_flags_per_feature.get("use_module_maps") else []),
+                 ),
+             ],
+         ),
+@@ -91,6 +99,7 @@
+                             flags = (["-Xclang"] if is_macos else []) + [
+                                 "-fmodule-map-file=%{dependent_module_map_files}",
+                             ],
++                            expand_if_available = "dependent_module_map_files",
+                         ),
+                     ],
+                 ),

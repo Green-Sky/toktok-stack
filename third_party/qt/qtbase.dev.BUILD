@@ -11,6 +11,10 @@ filegroup(
     srcs = glob([
         "lib/qt-6/plugins/platforms/*offscreen*",
         "lib/qt-6/plugins/platforms/*xcb*",
+        "lib/qt-6/plugins/platforms/*wayland*",
+        "lib/qt-6/plugins/wayland-decoration-client/*",
+        "lib/qt-6/plugins/wayland-graphics-integration-client/*",
+        "lib/qt-6/plugins/wayland-shell-integration/*",
         "lib/qt-6/plugins/tls/*opensslbackend*",
         "lib/qt-6/plugins/imageformats/*",
     ]),

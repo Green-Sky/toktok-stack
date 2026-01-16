@@ -1,10 +1,12 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "objc_library")
 
+REPO_ROOT = package_relative_label(":BUILD.bazel").workspace_root
+
 COPTS = [
     "-DAL_ALEXT_PROTOTYPES",
     "-I$(GENDIR)/third_party/openal/platform",
-    "-Iexternal/openal/alc",
-    "-Iexternal/openal/common",
+    "-I" + REPO_ROOT + "/alc",
+    "-I" + REPO_ROOT + "/common",
     "-fexceptions",
 ] + select({
     "@toktok//tools/config:arm64": [],

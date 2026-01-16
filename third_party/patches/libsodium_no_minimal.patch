@@ -1,0 +1,9 @@
+--- a/bzl/defs.bzl
++++ b/bzl/defs.bzl
+@@ -3,5 +3,5 @@
+ VERSION_H_TEMPLATE = "//:src/libsodium/include/sodium/version.h.in"
+ VERSION_H_OUTPUT_FILE = "sodium/version.h"
+-DEFAULT_MINIMAL = True
++DEFAULT_MINIMAL = False
+
+ def _gen_version_hdr_impl(ctx):

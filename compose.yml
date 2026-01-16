@@ -90,9 +90,12 @@ services:
       --config=release
       //...
 
+  # cyclone's stdlib is POSIX-only; the Windows build excludes it (not yet ported).
   windows:
     <<: *shared_params
     command: bazel build
       --remote_cache=grpc://bazel-cache:9092
       --config=windows-x86_64
+      --
       //...
+      -//cyclone/...

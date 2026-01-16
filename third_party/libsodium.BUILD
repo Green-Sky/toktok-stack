@@ -1,31 +1,50 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
 
+_REGEN_SRCS = glob([
+    "m4/*",
+    "**/*.am",
+]) + [
+    "configure.ac",
+    "libsodium.pc.in",
+    "libsodium-uninstalled.pc.in",
+    "src/libsodium/include/sodium/version.h.in",
+    "src/libsodium/sodium/version.c",
+]
+
+_REGEN_TOOLS = [
+    "@autoconf",
+    "@autoconf//:autoreconf",
+    "@automake",
+    "@automake//:aclocal",
+    "@diffutils//:cmp",
+    "@gnumake",
+    "@libtool//:libtool.m4",
+    "@libtool//:libtoolize",
+    "@m4",
+]
+
+# Get autotools on PATH and run autoreconf. Each genrule then calls ./configure
+# with its own flags and extracts the DEFS into a header.
+_REGEN_SETUP = """
+    export PATH="$$PATH:$$PWD/$$(dirname $(location @autoconf//:autoconf))"
+    export PATH="$$PATH:$$PWD/$$(dirname $(location @automake//:aclocal))"
+    export PATH="$$PATH:$$PWD/$$(dirname $(location @diffutils//:cmp))"
+    export PATH="$$PATH:$$PWD/$$(dirname $(location @gnumake))"
+    export PATH="$$PATH:$$PWD/$$(dirname $(location @libtool//:libtoolize))"
+    export PATH="$$PATH:$$PWD/$$(dirname $(location @m4))"
+
+    SRCDIR="$$(dirname $(location configure.ac))"
+    autoreconf -fi -I "$$PWD/$$(dirname $(location @libtool//:libtool.m4))" "$$SRCDIR"
+"""
+
 genrule(
     name = "regen_config",
-    srcs = glob([
-        "m4/*",
-        "**/*.am",
-    ]) + [
-        "configure.ac",
-        "libsodium.pc.in",
-        "libsodium-uninstalled.pc.in",
-        "src/libsodium/include/sodium/version.h.in",
-        "src/libsodium/sodium/version.c",
-    ],
+    srcs = _REGEN_SRCS,
     outs = [
         "src/libsodium/include/sodium/version.h",
         "src/sodium_config.h",
     ],
-    cmd = """
-        export PATH="$$PATH:$$PWD/$$(dirname $(location @autoconf//:autoconf))"
-        export PATH="$$PATH:$$PWD/$$(dirname $(location @automake//:aclocal))"
-        export PATH="$$PATH:$$PWD/$$(dirname $(location @diffutils//:cmp))"
-        export PATH="$$PATH:$$PWD/$$(dirname $(location @gnumake))"
-        export PATH="$$PATH:$$PWD/$$(dirname $(location @libtool//:libtoolize))"
-        export PATH="$$PATH:$$PWD/$$(dirname $(location @m4))"
-
-        SRCDIR="$$(dirname $(location configure.ac))"
-        autoreconf -fi -I "$$PWD/$$(dirname $(location @libtool//:libtool.m4))" "$$SRCDIR"
+    cmd = _REGEN_SETUP + """
         "$$SRCDIR/configure" CC="$(CC)" || (cat config.log && false)
 
         cp "src/libsodium/include/sodium/version.h" "$(location src/libsodium/include/sodium/version.h)"
@@ -35,17 +54,29 @@ genrule(
           > "$(location src/sodium_config.h)"
     """,
     toolchains = ["@rules_cc//cc:current_cc_toolchain"],
-    tools = [
-        "@autoconf",
-        "@autoconf//:autoreconf",
-        "@automake",
-        "@automake//:aclocal",
-        "@diffutils//:cmp",
-        "@gnumake",
-        "@libtool//:libtool.m4",
-        "@libtool//:libtoolize",
-        "@m4",
-    ],
+    tools = _REGEN_TOOLS,
+)
+
+# Mirrors regen_config but passes --disable-asm AND strips the
+# HAVE_*INTRIN_H detection macros from the output. libsodium's SIMD dispatchers
+# gate on those (e.g. poly1305 picks the SSE2 impl when HAVE_EMMINTRIN_H is
+# defined), so dropping them forces the pure-C fallbacks. Used under
+# --config=msan, where the SIMD impls confuse MSan's shadow tracking.
+genrule(
+    name = "regen_config_no_simd",
+    srcs = _REGEN_SRCS,
+    outs = ["src/sodium_config_no_simd.h"],
+    cmd = _REGEN_SETUP + """
+        "$$SRCDIR/configure" CC="$(CC)" --disable-asm || (cat config.log && false)
+
+        grep '^DEFS = ' Makefile \\
+          | grep -E -o -- '-D([^ ]|\\\\ )+' \\
+          | sed -e 's/^-D/#define /;s/=/ /;s/\\\\//g' \\
+          | grep -v -E '^#define HAVE_[A-Z0-9]*INTRIN_H ' \\
+          > "$(location src/sodium_config_no_simd.h)"
+    """,
+    toolchains = ["@rules_cc//cc:current_cc_toolchain"],
+    tools = _REGEN_TOOLS,
 )
 
 HEADERS = glob([
@@ -79,6 +110,7 @@ alias(
     actual = select({
         "@toktok//tools/config:linux-arm64": "@toktok//third_party/libsodium:config/linux-arm64.h",
         "@toktok//tools/config:linux-x86_64": "@toktok//third_party/libsodium:config/linux-x86_64.h",
+        "@toktok//tools/config:linux-x86_64-msan": "@toktok//third_party/libsodium:config/linux-x86_64-no-simd.h",
         "@toktok//tools/config:macos-arm64": "@toktok//third_party/libsodium:config/macos-arm64.h",
         "@toktok//tools/config:windows-x86_64": "@toktok//third_party/libsodium:config/windows-x86_64.h",
     }),
@@ -100,7 +132,6 @@ cc_library(
     hdrs = [":headers"],
     copts = [
         "-DSODIUM_DLL_EXPORT",
-        "-I$(GENDIR)/external/libsodium/include/sodium",
         "-include $(location :config)",
         "-Wno-strict-aliasing",
         "-Wno-unknown-pragmas",
@@ -115,6 +146,11 @@ cc_library(
         ],
     }),
     defines = ["SODIUM_STATIC"],
+    includes = [
+        "include/sodium",
+        "src/libsodium/include",
+        "src/libsodium/include/sodium",
+    ],
     strip_include_prefix = "include",
     textual_hdrs = glob(["src/libsodium/**/*.S"]),
     visibility = ["//visibility:public"],

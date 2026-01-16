@@ -1,0 +1,23 @@
+--- a/java/repositories.bzl	2000-01-01 00:00:00.000000000 +0000
++++ b/java/repositories.bzl	2026-01-23 01:49:58.000000000 +0000
+@@ -61,9 +61,20 @@
+ def java_tools_repos():
+     """ Declares the remote java_tools repositories """
+     for name, config in JAVA_TOOLS_CONFIG["artifacts"].items():
++        patch_cmds = []
++        if name == "java_tools_linux":
++            patch_cmds = [
++                "chmod 755 java_tools/ijar/ijar",
++                "$(ls /nix/store/*-patchelf-*/bin/patchelf | head -n1) --set-interpreter $(ls /nix/store/*-glibc-2.*/lib/ld-linux-x86-64.so.2 | head -n1) --add-rpath $(ls -d /nix/store/*-gcc-*-lib/lib | head -n1) java_tools/ijar/ijar",
++                "chmod 555 java_tools/ijar/ijar",
++                "chmod 755 java_tools/src/tools/singlejar/singlejar_local",
++                "$(ls /nix/store/*-patchelf-*/bin/patchelf | head -n1) --set-interpreter $(ls /nix/store/*-glibc-2.*/lib/ld-linux-x86-64.so.2 | head -n1) --add-rpath $(ls -d /nix/store/*-gcc-*-lib/lib | head -n1) java_tools/src/tools/singlejar/singlejar_local",
++                "chmod 555 java_tools/src/tools/singlejar/singlejar_local",
++            ]
+         maybe(
+             http_archive,
+             name = "remote_" + name,
++            patch_cmds = patch_cmds,
+             sha256 = config["sha"],
+             urls = [
+                 config["mirror_url"],

@@ -34,3 +34,7 @@ build --config=nix
 #build --config=msan
 #build --config=tsan
 #build --config=ubsan
+build --nowatchfs
+
+# Use BFD linker to avoid Gold linker deprecation warnings
+build --linkopt=-fuse-ld=bfd

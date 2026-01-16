@@ -1,0 +1,10 @@
+--- a/rules_haskell_nix/nixpkgs.bzl	2025-12-21 02:07:57.711980053 +0000
++++ b/rules_haskell_nix/nixpkgs.bzl	2025-12-21 02:07:57.721671453 +0000
+@@ -1,6 +1,6 @@
+ """Workspace rules (Nixpkgs)"""
+
+-load("@bazel_tools//tools/cpp:lib_cc_configure.bzl", "get_cpu_value")
++load("@rules_haskell//haskell:private/get_cpu_value.bzl", "get_cpu_value")
+ load(
+     "@rules_haskell//haskell:private/pkgdb_to_bzl.bzl",
+     "pkgdb_to_bzl",

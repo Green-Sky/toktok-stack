@@ -1,5 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_library", "objc_library")
 
+REPO_ROOT = package_relative_label(":BUILD.bazel").workspace_root
+
 COPTS = [
     "-DSDL_VIDEO_OPENGL_EGL=0",
     "-DSDL_VIDEO_RENDER_OGL_ES2=0",
@@ -23,7 +25,13 @@ genrule(
     name = "copy_headers",
     srcs = HDRS,
     outs = ["include/SDL2/%s" % hdr[hdr.rindex("/") + 1:] for hdr in HDRS],
-    cmd = "for i in $(SRCS); do cp $$i $(GENDIR)/external/sdl2/include/SDL2/`basename $$i`; done",
+    cmd = "mkdir -p $(RULEDIR)/include/SDL2 && " + " && ".join([
+        "cp -f $(location %s) $(RULEDIR)/include/SDL2/%s" % (
+            hdr,
+            hdr[hdr.rindex("/") + 1:],
+        )
+        for hdr in HDRS
+    ]),
 )
 
 cc_library(
@@ -139,7 +147,7 @@ cc_library(
     ),
     hdrs = [":copy_headers"] + HDRS,
     copts = COPTS + [
-        "-Iexternal/sdl2/src/hidapi/hidapi",
+        "-I" + REPO_ROOT + "/src/hidapi/hidapi",
     ],
     includes = ["include"],
     visibility = ["//visibility:public"],

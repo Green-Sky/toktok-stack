@@ -6,8 +6,14 @@ py_library(
     visibility = ["//visibility:public"],
 )
 
+exports_files([
+    "stubs/requests/requests/__init__.pyi",
+])
+
 filegroup(
     name = "typeshed",
-    srcs = [":requests"],
+    srcs = [
+        ":requests",
+    ],
     visibility = ["//visibility:public"],
 )

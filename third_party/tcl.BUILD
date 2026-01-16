@@ -1,5 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
+REPO_ROOT = package_relative_label(":BUILD.bazel").workspace_root
+
 filegroup(
     name = "library",
     srcs = ["library/init.tcl"],
@@ -228,13 +230,13 @@ cc_library(
         "-DTCL_WIDE_INT_IS_LONG=1",
         "-DTIME_WITH_SYS_TIME=1",
         "-DZIPFS_BUILD=1",
-        "-Iexternal/tcl/compat/zlib/contrib/minizip",
-        "-Iexternal/tcl/generic",
-        "-Iexternal/tcl/libtommath",
-        "-I$(GENDIR)/external/tcl/generic",
+        "-I" + REPO_ROOT + "/compat/zlib/contrib/minizip",
+        "-I" + REPO_ROOT + "/generic",
+        "-I" + REPO_ROOT + "/libtommath",
+        "-I$(GENDIR)/" + REPO_ROOT + "/generic",
     ] + select({
         "@toktok//tools/config:windows": [
-            "-Iexternal/tcl/win",
+            "-I" + REPO_ROOT + "/win",
         ],
         "//conditions:default": [
             "-DHAVE_CAST_TO_UNION=1",
@@ -243,7 +245,7 @@ cc_library(
             "-DHAVE_STRUCT_STAT_ST_BLOCKS=1",
             "-DHAVE_SYS_PARAM_H=1",
             "-DHAVE_UNISTD_H=1",
-            "-Iexternal/tcl/unix",
+            "-I" + REPO_ROOT + "/unix",
             "-Wno-implicit-int",
         ],
     }) + select({

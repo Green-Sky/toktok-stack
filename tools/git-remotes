@@ -135,10 +135,6 @@ our %REPOS = (
       upstream => 'toktok',
       repo 'iphydf',
    }],
-   'js-toxcore-c' => ['js-toxcore-c', {
-      upstream => 'toktok',
-      repo 'iphydf',
-   }],
    'jvm-toxcore-c' => ['jvm-toxcore-c', {
       upstream => 'toktok',
       repo 'iphydf',
