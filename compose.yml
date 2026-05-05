@@ -35,12 +35,14 @@ services:
     <<: *shared_params
     command: bazel test
       --remote_cache=grpc://bazel-cache:9092
+      --enable_workspace=true
       //...
 
   arm64:
     <<: *shared_params
     command: bazel build
       --remote_cache=grpc://bazel-cache:9092
+      --enable_workspace=true
       --config=linux-arm64-musl
       //...
 
@@ -48,6 +50,7 @@ services:
     <<: *shared_params
     command: tools/retry 3 bazel test
       --remote_cache=grpc://bazel-cache:9092
+      --enable_workspace=true
       --config=asan
       --build_tag_filters=-haskell,-fuzz-test
       --test_tag_filters=-haskell,-fuzz-test
@@ -57,6 +60,7 @@ services:
     <<: *shared_params
     command: tools/retry 3 bazel test
       --remote_cache=grpc://bazel-cache:9092
+      --enable_workspace=true
       --config=msan
       --build_tag_filters=-haskell,-fuzz-test
       --test_tag_filters=-haskell,-fuzz-test
@@ -69,6 +73,7 @@ services:
     <<: *shared_params
     command: bazel test
       --remote_cache=grpc://bazel-cache:9092
+      --enable_workspace=true
       --config=tsan
       --build_tag_filters=-haskell,-fuzz-test
       --test_tag_filters=-haskell,-fuzz-test
@@ -78,6 +83,7 @@ services:
     <<: *shared_params
     command: bazel test
       --remote_cache=grpc://bazel-cache:9092
+      --enable_workspace=true
       --config=debug
       --build_tag_filters=-haskell,-macos
       --test_tag_filters=-haskell,-macos
@@ -87,6 +93,7 @@ services:
     <<: *shared_params
     command: bazel test
       --remote_cache=grpc://bazel-cache:9092
+      --enable_workspace=true
       --config=release
       //...
 
@@ -94,5 +101,6 @@ services:
     <<: *shared_params
     command: bazel build
       --remote_cache=grpc://bazel-cache:9092
+      --enable_workspace=true
       --config=windows-x86_64
       //...

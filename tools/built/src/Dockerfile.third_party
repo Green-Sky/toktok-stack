@@ -17,6 +17,6 @@ COPY --chown=builder:users tools/config /src/workspace/tools/config
 COPY --chown=builder:users tools/workspace /src/workspace/tools/workspace
 WORKDIR /src/workspace
 RUN echo 'build --config=nix' >>.bazelrc \
- && sudo nix-daemon --daemon & bazel aquery --output=proto --show_timestamps //... > /dev/null
+ && sudo nix-daemon --daemon & bazel aquery --enable_workspace=true --output=proto --show_timestamps //... > /dev/null
 
 # vim:ft=dockerfile
